@@ -34,7 +34,7 @@ javac --release 8 -nowarn -cp "build/stub:$AJAR" -d build/classes @build/src.txt
 # 3) dex only the module classes (stubs excluded)
 find build/classes -name '*.class' > build/cls.txt
 cat build/cls.txt
-"$BT/d8" --min-api 21 --release --lib build/stub --output build/dex @build/cls.txt
+"$BT/d8" --min-api 21 --release --lib "$AJAR" --output build/dex @build/cls.txt
 
 # 4) compile resources
 "$BT/aapt2" compile --dir res -o build/res.zip
@@ -45,6 +45,7 @@ cat build/cls.txt
   -I "$AJAR" \
   --manifest AndroidManifest.xml \
   -R build/res.zip \
+  --auto-add-overlay \
   --min-sdk-version 21 \
   --target-sdk-version 34 \
   --version-code 1 \
