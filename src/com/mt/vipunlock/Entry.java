@@ -7,28 +7,30 @@ import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
 
 /**
- * MT Manager VIP gate unlock (research).
+ * MT Manager VIP gate unlock (local research build).
  *
- * Two static native boolean gates in the obfuscated class act as the
- * central VIP checks used across the app (recycle bin, octal conversion,
- * hex editor save, plugins, SMB/SFTP/FTPS/WebDav, custom icons, ...).
+ * The two gates are static native boolean methods inside an obfuscated
+ * class whose identifier consists of non-printable code points. They act
+ * as the central VIP checks used across the app (recycle bin, octal
+ * conversion, hex editor save, plugins, SMB/SFTP/FTPS/WebDav, custom
+ * icons, extra search dictionaries, ...).
  *
- * The real names are non-printable, so they are built from code points
- * to keep this source ASCII-only.
+ * Notes on the identifiers:
+ *   - Java processes \uXXXX escapes before lexing, so these char/string
+ *     literals fold into compile-time constants even though this source
+ *     file itself is pure ASCII. The resulting descriptors are written
+ *     into the dex constant pool verbatim, which we can verify statically.
+ *   - Descriptor of the gate class: Ll/U+06DF U+1A7B U+06E8;
+ *   - gate 1 name: U+06D6, gate 2 name: U+06E1.
  */
 public class Entry implements IXposedHookLoadPackage {
 
     private static final String TARGET_PKG = "bin.mt.plus";
 
-    /* l.\u06df\u1a7b\u06e8 */
-    private static final String GATE_CLASS =
-            "l." + new String(new char[]{0x06df, 0x1a7b, 0x06e8});
+    private static final String GATE_CLASS = "l." + '\u06df' + '\u1a7b' + '\u06e8';
 
-    /* public static native boolean \u06d6() */
-    private static final String GATE_VIP1 = new String(new char[]{0x06d6});
-
-    /* public static native boolean \u06e1() */
-    private static final String GATE_VIP2 = new String(new char[]{0x06e1});
+    private static final String GATE_VIP1 = "\u06d6";
+    private static final String GATE_VIP2 = "\u06e1";
 
     @Override
     public void handleLoadPackage(XC_LoadPackage.LoadPackageParam lpparam) throws Throwable {
@@ -36,7 +38,7 @@ public class Entry implements IXposedHookLoadPackage {
             return;
         }
 
-        XposedBridge.log("[MTVIP] target loaded, pid-package=" + lpparam.packageName);
+        XposedBridge.log("[MTVIP] target loaded: " + lpparam.packageName);
 
         Class<?> gate;
         try {
