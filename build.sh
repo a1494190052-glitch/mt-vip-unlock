@@ -5,10 +5,13 @@ SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
 BT="$(ls -d "$SDK"/build-tools/* 2>/dev/null | sort -V | tail -1)"
 AJAR="$(ls "$SDK"/platforms/*/android.jar 2>/dev/null | sort -V | tail -1)"
 
-if [ -z "$BT" ] || [ -z "$AJAR" ]; then
-  echo "SDK not configured. ANDROID_HOME=$SDK"
+if [ -z "$BT" ]; then
+  echo "build-tools not found. ANDROID_HOME=$SDK"
   ls -la "$SDK" 2>/dev/null || true
-  ls -la "$SDK"/build-tools 2>/dev/null || true
+  exit 1
+fi
+if [ -z "$AJAR" ]; then
+  echo "android.jar not found. ANDROID_HOME=$SDK"
   ls -la "$SDK"/platforms 2>/dev/null || true
   exit 1
 fi
@@ -19,18 +22,19 @@ echo "== android.jar : $AJAR"
 rm -rf build out
 mkdir -p build/stub build/classes build/dex out
 
-# 1) compile Xposed API stubs (compile-time only, never packaged)
+# 1) compile Xposed API stubs -- compile-time only, never packaged.
+#    --release 8 keeps the class file version (52) inside d8's supported range.
 find stub -name '*.java' > build/stub.txt
-javac -nowarn -cp "$AJAR" -d build/stub @build/stub.txt
+javac --release 8 -nowarn -d build/stub @build/stub.txt
 
-# 2) compile the module against the stubs + android.jar
+# 2) compile the module against the stubs
 find src -name '*.java' > build/src.txt
-javac -nowarn -cp "$AJAR:build/stub" -d build/classes @build/src.txt
+javac --release 8 -nowarn -cp "build/stub:$AJAR" -d build/classes @build/src.txt
 
 # 3) dex only the module classes (stubs excluded)
 find build/classes -name '*.class' > build/cls.txt
 cat build/cls.txt
-"$BT/d8" --min-api 21 --release --output build/dex @build/cls.txt
+"$BT/d8" --min-api 21 --release --lib build/stub --output build/dex @build/cls.txt
 
 # 4) compile resources
 "$BT/aapt2" compile --dir res -o build/res.zip
@@ -54,7 +58,7 @@ keytool -genkeypair \
   -keystore build/k.keystore -alias k \
   -keyalg RSA -keysize 2048 -validity 10000 \
   -storepass 123456 -keypass 123456 \
-  -dname "CN=MTVIP, OU=Research, O=Local, L=X, ST=X, C=CN" >/dev/null 2>&1
+  -dname "CN=MTVIP, OU=Research, O=Local, L=X, ST=X, C=CN"
 
 "$BT/zipalign" -f 4 out/unsigned.apk out/aligned.apk
 
