@@ -15,13 +15,11 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage;
  * conversion, hex editor save, plugins, SMB/SFTP/FTPS/WebDav, custom
  * icons, extra search dictionaries, ...).
  *
- * Notes on the identifiers:
- *   - Java processes \uXXXX escapes before lexing, so these char/string
- *     literals fold into compile-time constants even though this source
- *     file itself is pure ASCII. The resulting descriptors are written
- *     into the dex constant pool verbatim, which we can verify statically.
- *   - Descriptor of the gate class: Ll/U+06DF U+1A7B U+06E8;
- *   - gate 1 name: U+06D6, gate 2 name: U+06E1.
+ * Identifier notes (written without backslash-u on purpose, because Java
+ * expands Unicode escapes everywhere in a source file, comments included):
+ *   - gate class: package "l", simple name U+06DF U+1A7B U+06E8
+ *   - gate 1   : U+06D6 , static native boolean, no parameters
+ *   - gate 2   : U+06E1 , static native boolean, no parameters
  */
 public class Entry implements IXposedHookLoadPackage {
 
