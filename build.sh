@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -euxo pipefail
 
 SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
 BT="$(ls -d "$SDK"/build-tools/* 2>/dev/null | sort -V | tail -1)"
@@ -8,6 +8,8 @@ AJAR="$(ls "$SDK"/platforms/*/android.jar 2>/dev/null | sort -V | tail -1)"
 if [ -z "$BT" ] || [ -z "$AJAR" ]; then
   echo "SDK not configured. ANDROID_HOME=$SDK"
   ls -la "$SDK" 2>/dev/null || true
+  ls -la "$SDK"/build-tools 2>/dev/null || true
+  ls -la "$SDK"/platforms 2>/dev/null || true
   exit 1
 fi
 
@@ -19,14 +21,15 @@ mkdir -p build/stub build/classes build/dex out
 
 # 1) compile Xposed API stubs (compile-time only, never packaged)
 find stub -name '*.java' > build/stub.txt
-javac -nowarn -d build/stub @build/stub.txt
+javac -nowarn -cp "$AJAR" -d build/stub @build/stub.txt
 
-# 2) compile the module against the stubs
+# 2) compile the module against the stubs + android.jar
 find src -name '*.java' > build/src.txt
-javac -nowarn -cp build/stub -d build/classes @build/src.txt
+javac -nowarn -cp "$AJAR:build/stub" -d build/classes @build/src.txt
 
 # 3) dex only the module classes (stubs excluded)
 find build/classes -name '*.class' > build/cls.txt
+cat build/cls.txt
 "$BT/d8" --min-api 21 --release --output build/dex @build/cls.txt
 
 # 4) compile resources
