@@ -22,6 +22,11 @@ echo "== android.jar : $AJAR"
 rm -rf build out
 mkdir -p build/stub build/classes build/dex out
 
+# sanity: the module entry descriptor file must exist
+ test -f assets/xposed_init
+ echo "== xposed_init content:"
+ cat assets/xposed_init
+
 # 1) compile Xposed API stubs -- compile-time only, never packaged.
 #    --release 8 keeps the class file version (52) inside d8's supported range.
 find stub -name '*.java' > build/stub.txt
@@ -39,22 +44,28 @@ cat build/cls.txt
 # 4) compile resources
 "$BT/aapt2" compile --dir res -o build/res.zip
 
-# 5) link a base apk
+# 5) link a base apk (with assets, which carries assets/xposed_init)
 "$BT/aapt2" link \
   -o out/unsigned.apk \
   -I "$AJAR" \
   --manifest AndroidManifest.xml \
   -R build/res.zip \
+  -A assets \
   --auto-add-overlay \
   --min-sdk-version 21 \
   --target-sdk-version 34 \
-  --version-code 1 \
-  --version-name 1.0
+  --version-code 2 \
+  --version-name 2.0
 
 # 6) inject dex into the apk root
 (cd out && zip -q -j unsigned.apk ../build/dex/classes.dex)
 
-# 7) sign
+# 7) verify the resulting archive actually carries both module markers
+echo "== archive contents =="
+unzip -l out/unsigned.apk
+unzip -p out/unsigned.apk assets/xposed_init
+
+# 8) sign
 keytool -genkeypair \
   -keystore build/k.keystore -alias k \
   -keyalg RSA -keysize 2048 -validity 10000 \
