@@ -28,20 +28,43 @@ jobs:
           yes | sdkmanager --licenses >/dev/null 2>&1 || true
           sdkmanager "build-tools;34.0.0" "platforms;android-34"
 
+      - name: Environment probe
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          ls -la "$ANDROID_HOME" || true
+          ls -la "$ANDROID_HOME/build-tools" || true
+          ls -la "$ANDROID_HOME/platforms" || true
+          which java javac zip
+          java -version 2>&1 || true
+
       - name: Build module
-        run: bash build.sh
+        run: |
+          set +e
+          bash build.sh > build.log 2>&1
+          RC=$?
+          echo "build_exit=$RC"
+          echo "----- build.log -----"
+          cat build.log
+          echo "build_exit=$RC" >> $GITHUB_ENV
+          exit 0
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: MTVIP-Unlock
-          path: out/MTVIP-Unlock.apk
-
-      - name: Publish release
+      - name: Publish build log
+        if: always()
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
           name: build-${{ github.run_number }}
+          files: build.log
+          body: "automated build log (exit ${{ env.build_exit }})"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish apk
+        if: env.build_exit == '0'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
           files: out/MTVIP-Unlock.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
